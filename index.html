@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>人物相関図作成アプリ</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .main-content {
+            display: flex;
+            height: calc(100vh - 200px);
+            min-height: 600px;
+        }
+        
+        .sidebar {
+            width: 320px;
+            background: #f8f9fa;
+            border-right: 2px solid #e9ecef;
+            padding: 30px;
+            overflow-y: auto;
+        }
+        
+        .canvas-area {
+            flex: 1;
+            position: relative;
+            background: linear-gradient(45deg, #f0f0f0 25%, transparent 25%, transparent 75%, #f0f0f0 75%),
+                        linear-gradient(45deg, #f0f0f0 25%, transparent 25%, transparent 75%, #f0f0f0 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 10px 10px;
+        }
+        
+        .form-group {
+            margin-bottom: 25px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #dee2e6;
+            border-radius: 10px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+        
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+        }
+        
+        .btn-danger:hover {
+            box-shadow: 0 5px 15px rgba(231, 76, 60, 0.4);
+        }
+        
+        .character {
+            position: absolute;
+            width: 120px;
+            height: 120px;
+            border: 3px solid #fff;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: move;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+            transition: all 0.3s ease;
+            user-select: none;
+        }
+        
+        .character:hover {
+            transform: scale(1.05);
+            box-shadow: 0 12px 30px rgba(0,0,0,0.2);
+        }
+        
+        .character-name {
+            font-weight: bold;
+            font-size: 12px;
+            text-align: center;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+            margin-top: 5px;
+        }
+        
+        .character-age {
+            font-size: 10px;
+            color: rgba(255,255,255,0.9);
+            margin-top: 2px;
+        }
+        
+        .relationship-line {
+            position: absolute;
+            height: 3px;
+            background: #495057;
+            transform-origin: left center;
+            pointer-events: none;
+            z-index: 1;
+            border-radius: 2px;
+        }
+        
+        .relationship-label {
+            position: absolute;
+            background: white;
+            color: #495057;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            pointer-events: none;
+            z-index: 2;
+            border: 1px solid #dee2e6;
+        }
+        
+        .character-list {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .character-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            margin: 5px 0;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .delete-char {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .relationship-controls {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .controls h3 {
+            color: #495057;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+        }
+        
+        .color-options {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .color-option {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 3px solid transparent;
+            transition: all 0.3s ease;
+        }
+        
+        .color-option:hover, .color-option.selected {
+            border-color: #333;
+            transform: scale(1.1);
+        }
+        
+        .export-controls {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #dee2e6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📚 人物相関図メーカー</h1>
+            <p>映画・小説・アニメの登場人物の関係性を視覚化しましょう</p>
+        </div>
+        
+        <div class="main-content">
+            <div class="sidebar">
+                <div class="controls">
+                    <h3>✨ 人物追加</h3>
+                    <div class="form-group">
+                        <label>キャラクター名</label>
+                        <input type="text" id="charName" placeholder="例: 田中太郎">
+                    </div>
+                    <div class="form-group">
+                        <label>年齢</label>
+                        <input type="text" id="charAge" placeholder="例: 25歳">
+                    </div>
+                    <div class="form-group">
+                        <label>キャラクターカラー</label>
+                        <div class="color-options">
+                            <div class="color-option selected" style="background: #e74c3c" data-color="#e74c3c"></div>
+                            <div class="color-option" style="background: #3498db" data-color="#3498db"></div>
+                            <div class="color-option" style="background: #2ecc71" data-color="#2ecc71"></div>
+                            <div class="color-option" style="background: #f39c12" data-color="#f39c12"></div>
+                            <div class="color-option" style="background: #9b59b6" data-color="#9b59b6"></div>
+                            <div class="color-option" style="background: #1abc9c" data-color="#1abc9c"></div>
+                        </div>
+                    </div>
+                    <button class="btn" onclick="addCharacter()">人物を追加</button>
+                </div>
+                
+                <div class="relationship-controls">
+                    <h3>🔗 関係性設定</h3>
+                    <div class="form-group">
+                        <label>関係者A</label>
+                        <select id="charA"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>関係者B</label>
+                        <select id="charB"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>関係性</label>
+                        <input type="text" id="relationship" placeholder="例: 恋人、友達、ライバル">
+                    </div>
+                    <button class="btn" onclick="addRelationship()">関係を追加</button>
+                </div>
+                
+                <div class="character-list">
+                    <h3>👥 登場人物一覧</h3>
+                    <div id="charactersList"></div>
+                </div>
+                
+                <div class="export-controls">
+                    <button class="btn" onclick="exportDiagram()">📷 画像として保存</button>
+                    <button class="btn btn-danger" onclick="clearAll()">🗑️ 全て削除</button>
+                </div>
+            </div>
+            
+            <div class="canvas-area" id="canvas"></div>
+        </div>
+    </div>
+
+    <script>
+        let characters = [];
+        let relationships = [];
+        let selectedColor = '#e74c3c';
+        let isDragging = false;
+        let currentDragElement = null;
+        let dragOffset = { x: 0, y: 0 };
+
+        // カラー選択
+        document.querySelectorAll('.color-option').forEach(option => {
+            option.addEventListener('click', function() {
+                document.querySelector('.color-option.selected').classList.remove('selected');
+                this.classList.add('selected');
+                selectedColor = this.getAttribute('data-color');
+            });
+        });
+
+        function addCharacter() {
+            const name = document.getElementById('charName').value.trim();
+            const age = document.getElementById('charAge').value.trim();
+            
+            if (!name) {
+                alert('キャラクター名を入力してください');
+                return;
+            }
+
+            if (characters.find(c => c.name === name)) {
+                alert('同じ名前のキャラクターが既に存在します');
+                return;
+            }
+
+            const character = {
+                id: Date.now(),
+                name: name,
+                age: age,
+                color: selectedColor,
+                x: Math.random() * 400 + 100,
+                y: Math.random() * 300 + 100
+            };
+
+            characters.push(character);
+            updateCharacterSelects();
+            updateCharactersList();
+            renderCanvas();
+            
+            // フォームをクリア
+            document.getElementById('charName').value = '';
+            document.getElementById('charAge').value = '';
+        }
+
+        function addRelationship() {
+            const charAId = parseInt(document.getElementById('charA').value);
+            const charBId = parseInt(document.getElementById('charB').value);
+            const relationshipText = document.getElementById('relationship').value.trim();
+
+            if (!charAId || !charBId || !relationshipText) {
+                alert('全ての項目を入力してください');
+                return;
+            }
+
+            if (charAId === charBId) {
+                alert('異なるキャラクターを選択してください');
+                return;
+            }
+
+            // 既存の関係をチェック
+            if (relationships.find(r => 
+                (r.charA === charAId && r.charB === charBId) || 
+                (r.charA === charBId && r.charB === charAId))) {
+                alert('この2人の関係は既に設定されています');
+                return;
+            }
+
+            relationships.push({
+                charA: charAId,
+                charB: charBId,
+                relationship: relationshipText
+            });
+
+            renderCanvas();
+            document.getElementById('relationship').value = '';
+        }
+
+        function deleteCharacter(id) {
+            characters = characters.filter(c => c.id !== id);
+            relationships = relationships.filter(r => r.charA !== id && r.charB !== id);
+            updateCharacterSelects();
+            updateCharactersList();
+            renderCanvas();
+        }
+
+        function updateCharacterSelects() {
+            const selectA = document.getElementById('charA');
+            const selectB = document.getElementById('charB');
+            
+            selectA.innerHTML = '<option value="">選択してください</option>';
+            selectB.innerHTML = '<option value="">選択してください</option>';
+            
+            characters.forEach(char => {
+                selectA.innerHTML += `<option value="${char.id}">${char.name}</option>`;
+                selectB.innerHTML += `<option value="${char.id}">${char.name}</option>`;
+            });
+        }
+
+        function updateCharactersList() {
+            const list = document.getElementById('charactersList');
+            list.innerHTML = '';
+            
+            characters.forEach(char => {
+                const item = document.createElement('div');
+                item.className = 'character-item';
+                item.style.borderLeftColor = char.color;
+                item.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        ${char.image ? `<img src="${char.image}" style="width: 30px; height: 30px; border-radius: 50%; object-fit: cover;">` : `<div style="width: 15px; height: 15px; background: ${char.color}; border-radius: 50%;"></div>`}
+                        <div>
+                            <strong>${char.name}</strong>
+                            ${char.age ? `<span>(${char.age})</span>` : ''}
+                        </div>
+                    </div>
+                    <button class="delete-char" onclick="deleteCharacter(${char.id})">削除</button>
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        function renderCanvas() {
+            const canvas = document.getElementById('canvas');
+            canvas.innerHTML = '';
+
+            // 関係線を描画
+            relationships.forEach(rel => {
+                const charA = characters.find(c => c.id === rel.charA);
+                const charB = characters.find(c => c.id === rel.charB);
+                
+                if (charA && charB) {
+                    const line = createRelationshipLine(charA, charB, rel.relationship);
+                    canvas.appendChild(line.element);
+                    canvas.appendChild(line.label);
+                }
+            });
+
+            // キャラクターを描画
+            characters.forEach(char => {
+                const element = createCharacterElement(char);
+                canvas.appendChild(element);
+            });
+        }
+
+        function createCharacterElement(char) {
+            const element = document.createElement('div');
+            element.className = 'character';
+            element.style.left = char.x + 'px';
+            element.style.top = char.y + 'px';
+            element.style.background = `linear-gradient(135deg, ${char.color}, ${adjustColor(char.color, -20)})`;
+            element.innerHTML = `
+                <div class="character-name">${char.name}</div>
+                ${char.age ? `<div class="character-age">${char.age}</div>` : ''}
+            `;
+
+            // ドラッグ機能
+            element.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                currentDragElement = element;
+                const rect = element.getBoundingClientRect();
+                const canvasRect = document.getElementById('canvas').getBoundingClientRect();
+                dragOffset.x = e.clientX - rect.left;
+                dragOffset.y = e.clientY - rect.top;
+                element.style.zIndex = '1000';
+                e.preventDefault();
+            });
+
+            return element;
+        }
+
+        function createRelationshipLine(charA, charB, relationship) {
+            const line = document.createElement('div');
+            line.className = 'relationship-line';
+
+            const label = document.createElement('div');
+            label.className = 'relationship-label';
+            label.textContent = relationship;
+
+            // 線の位置と角度を計算
+            const dx = charB.x - charA.x;
+            const dy = charB.y - charA.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+
+            line.style.left = (charA.x + 60) + 'px';
+            line.style.top = (charA.y + 60) + 'px';
+            line.style.width = distance + 'px';
+            line.style.transform = `rotate(${angle}deg)`;
+
+            // ラベルの位置
+            label.style.left = (charA.x + charB.x) / 2 + 40 + 'px';
+            label.style.top = (charA.y + charB.y) / 2 + 40 + 'px';
+
+            return { element: line, label: label };
+        }
+
+        function adjustColor(color, percent) {
+            const num = parseInt(color.replace("#", ""), 16);
+            const amt = Math.round(2.55 * percent);
+            const R = (num >> 16) + amt;
+            const G = (num >> 8 & 0x00FF) + amt;
+            const B = (num & 0x0000FF) + amt;
+            return "#" + (0x1000000 + (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 +
+                (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 +
+                (B < 255 ? B < 1 ? 0 : B : 255)).toString(16).slice(1);
+        }
+
+        // マウスイベント
+        document.addEventListener('mousemove', (e) => {
+            if (isDragging && currentDragElement) {
+                const canvas = document.getElementById('canvas');
+                const canvasRect = canvas.getBoundingClientRect();
+                const newX = e.clientX - canvasRect.left - dragOffset.x;
+                const newY = e.clientY - canvasRect.top - dragOffset.y;
+
+                currentDragElement.style.left = Math.max(0, Math.min(newX, canvas.clientWidth - 120)) + 'px';
+                currentDragElement.style.top = Math.max(0, Math.min(newY, canvas.clientHeight - 120)) + 'px';
+
+                // キャラクター座標を更新
+                const charName = currentDragElement.querySelector('.character-name').textContent;
+                const char = characters.find(c => c.name === charName);
+                if (char) {
+                    char.x = parseInt(currentDragElement.style.left);
+                    char.y = parseInt(currentDragElement.style.top);
+                }
+
+                // 関係線を再描画
+                renderCanvas();
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (currentDragElement) {
+                currentDragElement.style.zIndex = '';
+            }
+            isDragging = false;
+            currentDragElement = null;
+        });
+
+        function exportDiagram() {
+            const canvas = document.getElementById('canvas');
+            html2canvas(canvas).then(canvasElement => {
+                const link = document.createElement('a');
+                link.download = '人物相関図.png';
+                link.href = canvasElement.toDataURL();
+                link.click();
+            });
+        }
+
+        function clearAll() {
+            if (confirm('全てのデータを削除しますか？この操作は元に戻せません。')) {
+                characters = [];
+                relationships = [];
+                updateCharacterSelects();
+                updateCharactersList();
+                renderCanvas();
+            }
+        }
+
+        // 初期化
+        updateCharacterSelects();
+        updateCharactersList();
+    </script>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</body>
+</html>
