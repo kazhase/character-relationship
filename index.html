@@ -135,6 +135,14 @@
             box-shadow: 0 8px 25px rgba(0,0,0,0.15);
             transition: all 0.3s ease;
             user-select: none;
+            overflow: hidden;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+        
+        .character.has-image {
+            background-color: transparent;
         }
         
         .character:hover {
@@ -155,6 +163,16 @@
             font-size: 10px;
             color: rgba(255,255,255,0.9);
             margin-top: 2px;
+        }
+        
+        .character-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(transparent, rgba(0,0,0,0.8));
+            padding: 8px 4px 4px;
+            border-radius: 0 0 50px 50px;
         }
         
         .relationship-line {
@@ -250,6 +268,57 @@
             padding-top: 20px;
             border-top: 1px solid #dee2e6;
         }
+        
+        .image-upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            background: #f8f9fa;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+        }
+        
+        .image-upload-area:hover {
+            background: #e7f1ff;
+            border-color: #4a5bea;
+        }
+        
+        .image-upload-text {
+            color: #495057;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .image-preview {
+            margin-top: 10px;
+        }
+        
+        .preview-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .preview-image {
+            width: 60px;
+            height: 60px;
+            border-radius: 8px;
+            border: 2px solid #28a745;
+            object-fit: cover;
+        }
+        
+        .remove-image-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+        }
     </style>
 </head>
 <body>
@@ -281,6 +350,16 @@
                             <div class="color-option" style="background: #9b59b6" data-color="#9b59b6"></div>
                             <div class="color-option" style="background: #1abc9c" data-color="#1abc9c"></div>
                         </div>
+                    </div>
+                    <div class="form-group">
+                        <label>キャラクター画像（オプション）</label>
+                        <div class="image-upload-area" id="imageUploadArea" onclick="document.getElementById('charImage').click();">
+                            <div class="image-upload-text" id="fileUploadText">
+                                📷 クリックして画像を選択
+                            </div>
+                            <input type="file" id="charImage" accept="image/*" onchange="previewImage(this)" style="display: none;">
+                        </div>
+                        <div id="imagePreview" class="image-preview"></div>
                     </div>
                     <button class="btn" onclick="addCharacter()">人物を追加</button>
                 </div>
@@ -321,6 +400,7 @@
         let characters = [];
         let relationships = [];
         let selectedColor = '#e74c3c';
+        let selectedImage = null;
         let isDragging = false;
         let currentDragElement = null;
         let dragOffset = { x: 0, y: 0 };
@@ -333,6 +413,53 @@
                 selectedColor = this.getAttribute('data-color');
             });
         });
+
+        // 画像プレビュー機能
+        function previewImage(input) {
+            const preview = document.getElementById('imagePreview');
+            const uploadText = document.getElementById('fileUploadText');
+            const uploadArea = document.getElementById('imageUploadArea');
+            
+            preview.innerHTML = '';
+            
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    selectedImage = e.target.result;
+                    
+                    // アップロードエリアの表示を更新
+                    uploadText.innerHTML = '✅ 画像が選択されました！';
+                    uploadText.style.color = '#28a745';
+                    uploadArea.style.borderColor = '#28a745';
+                    uploadArea.style.backgroundColor = '#d4edda';
+                    
+                    // プレビュー画像を表示
+                    preview.innerHTML = `
+                        <div class="preview-container">
+                            <img src="${selectedImage}" class="preview-image">
+                            <button onclick="clearImageSelection()" class="remove-image-btn">画像を削除</button>
+                        </div>
+                    `;
+                };
+                reader.readAsDataURL(input.files[0]);
+            } else {
+                clearImageSelection();
+            }
+        }
+        
+        function clearImageSelection() {
+            selectedImage = null;
+            document.getElementById('charImage').value = '';
+            document.getElementById('imagePreview').innerHTML = '';
+            
+            const uploadText = document.getElementById('fileUploadText');
+            const uploadArea = document.getElementById('imageUploadArea');
+            
+            uploadText.innerHTML = '📷 クリックして画像を選択';
+            uploadText.style.color = '#495057';
+            uploadArea.style.borderColor = '#667eea';
+            uploadArea.style.backgroundColor = '#f8f9fa';
+        }
 
         function addCharacter() {
             const name = document.getElementById('charName').value.trim();
@@ -353,6 +480,7 @@
                 name: name,
                 age: age,
                 color: selectedColor,
+                image: selectedImage,
                 x: Math.random() * 400 + 100,
                 y: Math.random() * 300 + 100
             };
@@ -365,6 +493,7 @@
             // フォームをクリア
             document.getElementById('charName').value = '';
             document.getElementById('charAge').value = '';
+            clearImageSelection();
         }
 
         function addRelationship() {
@@ -471,11 +600,23 @@
             element.className = 'character';
             element.style.left = char.x + 'px';
             element.style.top = char.y + 'px';
-            element.style.background = `linear-gradient(135deg, ${char.color}, ${adjustColor(char.color, -20)})`;
-            element.innerHTML = `
-                <div class="character-name">${char.name}</div>
-                ${char.age ? `<div class="character-age">${char.age}</div>` : ''}
-            `;
+            
+            if (char.image) {
+                element.classList.add('has-image');
+                element.style.backgroundImage = `url(${char.image})`;
+                element.innerHTML = `
+                    <div class="character-overlay">
+                        <div class="character-name">${char.name}</div>
+                        ${char.age ? `<div class="character-age">${char.age}</div>` : ''}
+                    </div>
+                `;
+            } else {
+                element.style.background = `linear-gradient(135deg, ${char.color}, ${adjustColor(char.color, -20)})`;
+                element.innerHTML = `
+                    <div class="character-name">${char.name}</div>
+                    ${char.age ? `<div class="character-age">${char.age}</div>` : ''}
+                `;
+            }
 
             // ドラッグ機能
             element.addEventListener('mousedown', (e) => {
